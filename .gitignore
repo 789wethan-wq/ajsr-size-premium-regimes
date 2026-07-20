@@ -1,0 +1,17 @@
+# Generated outputs -- regenerate via run_pipeline.sh, don't commit
+outputs/*.csv
+outputs/*.png
+outputs/*.pdf
+
+# Raw fetched data -- regenerate via src/fetch_data.py, don't commit
+# (keep CHECKSUMS.sha256 tracked so the pinned vintage is verifiable)
+data/*.csv
+data/*.CSV
+!data/CHECKSUMS.sha256
+
+# Environment
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
