@@ -1,12 +1,7 @@
-# Pin versions once you've confirmed what you actually developed against —
-# these are reasonable defaults for a 2026-era Python 3.13 environment, not
-# a verified lockfile. Run `pip freeze > requirements.txt` in your working
-# venv after confirming everything runs, and replace this file with that
-# output for a true reproducible pin.
-
-numpy>=1.26
-pandas>=2.2
-scipy>=1.13
-statsmodels>=0.14
-matplotlib>=3.9
-requests>=2.32          # for fetch_data.py
+numpy==2.5.1
+pandas==3.0.3
+scipy==1.18.0
+statsmodels==0.14.6
+matplotlib==3.11.1
+requests==2.34.2         # for fetch_data.py
+arch==8.0.0               # for placebo_and_multistart.py's GARCH null model
