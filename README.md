@@ -42,6 +42,7 @@ before treating a re-fetch as equivalent to the original run.
 | `F-F_Research_Data_Factors.csv` | `b0673efb39d1` | Mkt-RF, SMB, HML, RF |
 | `F-F_Momentum_Factor.csv` | `cd2429809e08` | UMD (Carhart 4th factor) |
 | `Portfolios_Formed_on_ME.csv` | `a9e9adac1544` | 18 size-sorted test portfolios |
+| `F-F_Research_Data_5_Factors_2x3.csv` | `a04a3ee9e25f` | `make_figure3.py`'s pre-1963 fallback; `robustnesstests.py`'s FF5 robustness test |
 
 `Portfolios_Formed_on_ME.csv` ("Portfolios Formed on Size") is the file
 this project's prior data pull used, confirmed against a byte-identical
@@ -75,23 +76,30 @@ Run from the repository root (not from inside `data/` — relative paths
 assume root):
 
 ```bash
-python src/fetch_data.py                        # pulls pinned vintage into data/
-python src/factor_attribution_v2.py              # -> Table 1, Figure 2
-python src/bootstrap_inference.py                # -> Table 2, Table 6 Panels A/C
-python src/ct_decomposition.py                    # -> Tables 3, 5
-python src/robustnesstests.py                     # -> Table 4
-python src/bootstrap_stageA_rho.py                # -> Table 6 Panel B (per-window)
-python src/bootstrap_stageA_pooled_v2.py          # -> Table 6 Panel B (pooled, joint-calendar)
-python src/bootstrap_param_diff.py                # -> Table 6 Panel C detail
-python src/trainingonlyoos.py                     # -> Table 7 (with bh_family_recomputed.csv, dm_results.csv)
-python src/placebo_and_multistart.py              # -> Table 8 (Panels A & B)
-python src/count_stress_episodes.py               # -> stress_episodes.csv (feeds Table 8 Panel B note)
-python src/make_figure1_v2.py                     # -> Figure 1
+python src/fetch_data.py                  # pulls pinned vintage into data/
+python src/trainingonlyoos.py             # -> Table 7; writes regime_parameters.csv
+python src/bh_recompute.py                # -> Table 2 BH-adjusted columns
+python src/bootstrap_inference.py         # -> Table 2, Table 6 Panels A/C (reads regime_parameters.csv)
+python src/ct_decomposition.py            # -> Tables 3, 5; writes campbell_thompson_full_fullfilt.csv (Cell A)
+python src/factor_attribution_v2.py       # -> Table 1, Figure 2 (reads Cell A from ct_decomposition.py)
+python src/figure2_v2.py                  # -> Figure 2
+python src/make_figure1_v2.py             # -> Figure 1
+python src/make_figure3.py                # -> Figure 3
+python src/bootstrap_stageA_rho.py        # -> Table 6 Panel B (per-window)
+python src/bootstrap_stageA_pooled_v2.py  # -> Table 6 Panel B (pooled, joint-calendar)
+python src/bootstrap_param_diff.py        # -> Table 6 Panel C, rows 7-8
+python src/robustnesstests.py             # -> Table 4
+python src/placebo_and_multistart.py      # -> Table 8 (Panels A & B)
+python src/count_stress_episodes.py       # -> feeds Table 8 Panel A note
+python src/check_three_state_degeneracy.py  # asserts the Table 4/8 non-identification pathology
 ```
 
-Order matters where a later script consumes an earlier script's CSV output
-(e.g. `ct_decomposition.py` reads factor-attribution output). See each
-script's docstring for its specific input files.
+**Order matters and is not arbitrary** — `bootstrap_inference.py` reads
+`regime_parameters.csv`, written by `trainingonlyoos.py`; `factor_attribution_v2.py`
+reads `campbell_thompson_full_fullfilt.csv` (Cell A), written by
+`ct_decomposition.py`. Both dependencies must run first, as ordered above.
+`run_pipeline.sh` runs exactly this sequence. See each script's docstring
+for its specific input files.
 
 To check your run against the results reported in the paper:
 
@@ -99,10 +107,16 @@ To check your run against the results reported in the paper:
 python src/verify_against_expected.py
 ```
 
-This diffs every generated CSV in `outputs/` against `expected_outputs/`,
+This diffs every generated CSV/PNG at the repo root against `expected_outputs/`,
 reporting exact matches, floating-point-noise matches (< 1e-8), and any real
 discrepancies. **Do not edit `expected_outputs/` to match a new run** — a
 mismatch means something changed and needs to be understood, not suppressed.
+Two named exceptions to the numeric diff, both because an unconstrained
+three-state Markov-switching fit is not identified for this series (see
+"Known issues" below): `robustness_three_state.csv` is checked structurally
+and by re-deriving the non-identification pathology, not by value; the
+"Three-state" row inside `robustness_summary.csv` gets the same treatment
+while every other row in that file is diffed normally.
 
 ## Known issues (fixed in this repository, disclosed for transparency)
 
@@ -160,11 +174,13 @@ artifact, not a competing model), not merely a decimal-place correction.
 ├── requirements.txt
 ├── LICENSE
 ├── CHANGELOG.md                # what changed between manuscript-lock and repo-release runs
+├── run_pipeline.sh             # runs every step below in order, then verify_against_expected.py
+├── portfolio_factor_loadings.csv          # static input, tracked (see .gitignore)
+├── campbell_thompson_full_trainfilt.csv   # static input, tracked (see .gitignore)
 ├── data/
-│   ├── fetch_data.py           # (symlinked from src/, kept here for discoverability)
-│   └── CHECKSUMS.sha256
+│   └── CHECKSUMS.sha256        # written by src/fetch_data.py after a real fetch
 ├── src/                        # analysis scripts (see "Reproducing the results")
-├── outputs/                    # CSVs generated by src/ scripts (gitignored; regenerate via scripts)
+├── *.csv, *.png                # generated at the repo root by src/ scripts (gitignored; regenerate via scripts)
 └── expected_outputs/           # reference outputs for verify_against_expected.py
 ```
 
