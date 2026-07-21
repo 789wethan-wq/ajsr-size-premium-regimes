@@ -1,32 +1,57 @@
 # Changelog
 
-## [Unreleased] — pre-Zenodo-release verification pass
+## [Unreleased]
 
-**Data vintage.** All results in the manuscript reflect the French Data
-Library vintage pinned as of **2026-06-09**. `expected_outputs/` fixtures
-for Table 4's robustness tests and `smb_regime_probabilities.csv` predate
-this pin (generated 2026-03-30 and 2026-04-23 respectively) and were
-regenerated against the pinned vintage before release.
+**`expected_outputs/` is not yet populated in this commit.** See
+`expected_outputs/NOT_YET_POPULATED.md`. Pending: two fully independent
+fresh-clone runs of this repo's `run_pipeline.sh`, diffed directly against
+each other, before anything is written there. In progress as of this
+commit; a follow-up commit will add the verified contents.
 
-> Fill in here once confirmed: whether the manuscript's *printed* Table 4
-> values matched the pre-pin or post-pin run. If they matched pre-pin,
-> note that explicitly and explain why (e.g. Table 4 was locked before the
-> vintage was finalized and the difference is immaterial) rather than
-> silently reconciling the fixture only.
+**Two fixes actually made and verified tonight (see README, "Known
+issues," for the full description):**
+- `robustnesstests.py`'s `fit_regime()` — the three-state fit (Table 4's
+  "Three-state model" row; also used by `placebo_and_multistart.py`'s
+  Table 8 model selection) used a single deterministic EM start despite a
+  multimodal likelihood. Fixed with a seeded 30-restart search
+  (`np.random.seed(SEED)` + `search_reps=30`) for k≥3 fits only. This
+  surfaced a more consequential finding than the missing search itself:
+  the three-state specification is not identified for this series (see
+  "The three-state model is not identified," README) — Table 4 and Table 8
+  now report that row as non-identified rather than as a point estimate.
+- `bootstrap_inference.py` — `SEED + hash((split, b)) % 10_000_000`
+  (Python's `hash()` on tuples-of-strings is randomized per-process, so
+  this was not actually reproducible across runs despite the documented
+  seed). Fixed with a `hashlib.sha256`-based deterministic seed derivation
+  (`_deterministic_seed()`), same value range, same call sites, only the
+  hash function changed.
 
-**Seeding bugs fixed (see README, "Known issues," for full description):**
-- `robustnesstests.py` — added `np.random.default_rng(SEED)`, previously
-  unseeded `np.random.choice` call (line ~426, `robustness_bootstrap.csv`).
-- `bootstrap_inference.py` — replaced `hash((split, b))`-derived per-draw
-  seeds (not reproducible across processes due to Python's randomized
-  string hashing) with `np.random.default_rng(SEED).spawn(n_draws)`.
+**Verified impact of the `bootstrap_inference.py` fix, from an actual
+run-vs-run diff (not a single run compared to itself):** point estimates
+were exactly unaffected (deterministic, don't depend on the bootstrap
+RNG). CI bounds and bootstrap p-values shifted by amounts consistent with
+ordinary Monte Carlo sampling noise for B=5000 (confirmed against a
+buggy-vs-buggy control comparison of the same order of magnitude) — up to
+~0.025 in p-value, ~2.6pp in CI bounds on non-printed robustness rows,
+~1.3pp on printed rows. This is **larger than the "no printed value
+changed" claim this section used to make**, which was based on a single
+run compared to itself, not a genuine cross-run range — that claim was
+wrong and has been corrected. The manuscript's printed CI/p-value digits
+in Table 6 Panel A, Panel C (rows 1-6), the Abstract, and two Discussion
+sentences did not reproduce from the fixed code and were updated to the
+values the fixed, cross-run-verified code actually produces. No
+conclusion changed: every Panel A p-value remains far from any
+significance threshold under both the old and corrected numbers, and the
+paper's one significance claim resting on this file (Table 6 Panel C rows
+7-8, the μstress − μcalm difference) comes from `bootstrap_param_diff.py`,
+a separate script that was already seeded correctly and is untouched by
+this fix.
 
-**Verified impact of the seeding fix on manuscript-reported values:**
-max difference 6.6e-4 in `bootstrap_per_portfolio.csv`; one discrete CI
-bound in `bootstrap_results.csv` off by 2 units pre-fix. No printed
-manuscript table value changed as a result — confirm and record the
-specific check here (which Table 6 cell was compared, pre- vs post-fix)
-before release, not just the claim that it didn't change.
+**Known issue, NOT fixed:** `robustnesstests.py`'s `t7_bootstrap()`
+(`robustness_bootstrap.csv`) calls `np.random.choice(N, N, replace=True)`
+in a 2000-iteration loop with no seed set anywhere in the function --
+confirmed still present in this commit. Flagged, not silently left
+undocumented; fixing it is future work.
 
 ## Initial release
 

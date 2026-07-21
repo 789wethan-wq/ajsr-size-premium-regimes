@@ -118,22 +118,44 @@ and by re-deriving the non-identification pathology, not by value; the
 "Three-state" row inside `robustness_summary.csv` gets the same treatment
 while every other row in that file is diffed normally.
 
-## Known issues (fixed in this repository, disclosed for transparency)
+## Known issues
 
 Consistent with this paper's central concern with reproducibility and
-look-ahead bias, three issues were found and fixed during final
+look-ahead bias: two seeding issues were found and fixed during final
 verification, after the manuscript's headline numbers were already locked in
-from a run predating the fix:
+from a run predating the fix; a third is found and disclosed, not yet fixed.
 
-- **`robustnesstests.py`**: a call to `np.random.choice` (feeding
-  `robustness_bootstrap.csv`, Table 4) had no seed set anywhere in the file.
-  Fixed by seeding via `np.random.default_rng(SEED)`.
+**Fixed:**
+
 - **`bootstrap_inference.py`**: per-draw seeds were derived as
-  `SEED + hash((split, b)) % 10_000_000`. Python's string hashing is
-  randomized per-process unless `PYTHONHASHSEED` is fixed, so this was not
-  actually deterministic across runs despite the documented seed. Fixed by
-  switching to `np.random.default_rng(SEED).spawn(n_draws)` (a proper
-  `SeedSequence`-based scheme), removing the `hash()` call entirely.
+  `SEED + hash((split, b)) % 10_000_000`. Python's `hash()` on
+  tuples-of-strings is randomized per-process unless `PYTHONHASHSEED` is
+  fixed, so this was not actually deterministic across runs despite the
+  documented seed (confirmed empirically: `hash(("2000-01", 5))` differs
+  across separate `python -c` invocations). Fixed with a
+  `hashlib.sha256`-based deterministic seed derivation
+  (`_deterministic_seed()` in the file) — same value range, same call
+  sites, only the hash function changed. Verified via an actual run-vs-run
+  diff (two independent processes, not one run compared to itself): point
+  estimates were exactly unaffected (they don't depend on the bootstrap
+  RNG); CI bounds and p-values shifted by amounts consistent with ordinary
+  Monte Carlo sampling noise for B=5000, confirmed against a
+  buggy-vs-buggy control comparison of the same order of magnitude. This
+  is larger than a "no printed value changed" claim would suggest — see
+  `CHANGELOG.md` for the full account, including that an earlier version
+  of this section made exactly that (wrong) claim, based on a single run
+  compared to itself rather than a real cross-run range. The manuscript's
+  printed CI/p-value digits in Table 6 Panel A, Panel C (rows 1-6), the
+  Abstract, and two Discussion sentences did not reproduce from the fixed
+  code and were corrected to the values the fixed code actually produces.
+  No conclusion changed: every Panel A p-value remains far from any
+  significance threshold under both the old and corrected numbers. The
+  other three bootstrap scripts (`bootstrap_stageA_rho.py`,
+  `bootstrap_stageA_pooled_v2.py`, `bootstrap_param_diff.py`) already used
+  `np.random.default_rng(SEED)` correctly and were unaffected — in
+  particular, Table 6 Panel C's actual significance claim (rows 7-8, the
+  μstress − μcalm difference) comes from `bootstrap_param_diff.py` and is
+  untouched by this fix.
 - **`robustnesstests.py`'s `fit_regime()`**: the three-state fit (Table 4's
   "Three-state model" row; also used by `placebo_and_multistart.py`'s
   Table 8 Panel A model-selection comparison) used a single deterministic
@@ -149,22 +171,22 @@ from a run predating the fix:
   well-known unbounded-likelihood degeneracy of maximum-likelihood
   estimation for mixture and regime-switching models with unrestricted
   variances (Day, 1969) — the three-state specification is not identified
-  for this series, not a genuine competing model. See the manuscript's
-  Methods section ("the added state collapses onto a handful of outlier
+  for this series, not a genuine competing model. This changes how Table
+  4's "Three-state model" row and Table 8 Panel A's three-state BIC/AIC
+  columns should be read (non-identified artifact, not a competing model),
+  not merely a decimal-place correction. See the manuscript's Methods
+  section ("the added state collapses onto a handful of outlier
   months...") and the Table 4 / Table 8 notes for the full treatment;
   Table 4 reports this row as non-identified rather than as a point
   estimate.
 
-The first two had negligible effect on reported numbers (max difference
-6.6e-4 in `bootstrap_per_portfolio.csv`; one discrete CI bound off by 2 units
-in `bootstrap_results.csv`) — see `CHANGELOG.md` for the verification that
-confirmed no printed manuscript value changed as a result of either fix. The
-other three bootstrap scripts (`bootstrap_stageA_rho.py`,
-`bootstrap_stageA_pooled_v2.py`, `bootstrap_param_diff.py`) already used
-`np.random.default_rng(SEED)` correctly and were unaffected. The third is
-more consequential: it changes how Table 4's "Three-state model" row and
-Table 8 Panel A's three-state BIC/AIC columns should be read (non-identified
-artifact, not a competing model), not merely a decimal-place correction.
+**Disclosed, not fixed:**
+
+- **`robustnesstests.py`'s `t7_bootstrap()`**: a call to
+  `np.random.choice(N, N, replace=True)` (feeding `robustness_bootstrap.csv`,
+  Table 4) inside a 2000-iteration loop has no seed set anywhere in the
+  function — confirmed by inspection, still present in this commit.
+  Fixing this is future work; noted here rather than silently shipped.
 
 ## Repository structure
 
