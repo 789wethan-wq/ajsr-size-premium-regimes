@@ -4,7 +4,6 @@
 Forecastability in the Carhart Four-Factor Model
 **Author:** Ethan Wuang, Lake Forest Academy
 **Journal:** American Journal of Student Research (AJSR), ISSN 2996-2218
-**Archived version:** [Zenodo DOI — insert on release: 10.5281/zenodo.XXXXXXX]
 
 ---
 
