@@ -81,6 +81,17 @@ ROBUSTNESS_SUMMARY_LABEL_COL = "label"
 ROBUSTNESS_SUMMARY_THREE_STATE_LABEL = "Three-state"
 
 
+def _read_csv(path: Path) -> pd.DataFrame:
+    """Several pipeline scripts write a '#'-prefixed provenance header
+    (seed, B, block lengths, etc.) before the real CSV header row --
+    plain pd.read_csv() misparses these (the comment line gets read as
+    the header, then every data row mismatches the resulting column
+    count). Detect and skip it."""
+    with open(path) as f:
+        first_line = f.readline()
+    return pd.read_csv(path, comment="#" if first_line.startswith("#") else None)
+
+
 def _numeric_diff(actual: pd.DataFrame, expected: pd.DataFrame) -> tuple[str, str]:
     """Core column-wise comparison shared by compare_csv() (whole file)
     and compare_robustness_summary() (the non-three-state rows only)."""
@@ -105,8 +116,8 @@ def _numeric_diff(actual: pd.DataFrame, expected: pd.DataFrame) -> tuple[str, st
 
 
 def compare_csv(actual_path: Path, expected_path: Path) -> dict:
-    actual = pd.read_csv(actual_path)
-    expected = pd.read_csv(expected_path)
+    actual = _read_csv(actual_path)
+    expected = _read_csv(expected_path)
 
     result = {"file": actual_path.name, "status": None, "detail": ""}
 
@@ -194,8 +205,8 @@ def check_three_state_pathology() -> dict:
 def compare_robustness_summary(actual_path: Path, expected_path: Path) -> dict:
     """Replaces the numeric diff for ROBUSTNESS_SUMMARY_FILE's
     "Three-state" row only; every other row is diffed normally."""
-    actual = pd.read_csv(actual_path)
-    expected = pd.read_csv(expected_path)
+    actual = _read_csv(actual_path)
+    expected = _read_csv(expected_path)
     result = {"file": actual_path.name, "status": None, "detail": ""}
 
     if list(actual.columns) != list(expected.columns):

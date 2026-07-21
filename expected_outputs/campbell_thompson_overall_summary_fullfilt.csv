@@ -1,0 +1,2 @@
+mean_OOS_R2_regime_vs_hist_mean,mean_OOS_R2_static_vs_hist_mean,mean_incremental_OOS_R2,frac_OOS_R2_regime_positive,frac_OOS_R2_static_positive,mean_MSFE_stat,frac_MSFE_sig_10pct,frac_MSFE_sig_5pct,mean_delta_mse,n_obs
+0.0041347823134454086,0.0005473771024489785,0.003589239922420775,0.9259259259259259,0.9074074074074074,1.3336611077984717,0.6111111111111112,0.3888888888888889,-1.353425767496838e-05,54
